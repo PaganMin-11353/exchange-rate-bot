@@ -92,15 +92,23 @@ def _build_prediction_table(
     if not currency_names:
         return ""
 
-    # Calculate column widths
-    col_width = max(len(v) for vals in pred_values for v in vals)
-    col_width = max(col_width, max(len(c) for c in currency_names))
-    col_width = max(col_width, 6)  # minimum width
+    # Column width based on data values (all ASCII)
+    col_w = max(len(v) for vals in pred_values for v in vals)
+    col_w = max(col_w, max(len(c) for c in currency_names))
+    col_w = max(col_w, 6)
 
-    # Build header row
-    header = "      "
+    def _rpad(text: str, width: int) -> str:
+        """Right-align text accounting for CJK double-width chars."""
+        display_w = sum(2 if ord(c) > 0x7F else 1 for c in text)
+        return " " * (width - display_w) + text
+
+    # Row label width: "05-06" = 5 chars, "趋势" = 4 display chars
+    label_w = 5
+
+    # Build header
+    header = " " * label_w + " "
     for name in currency_names:
-        header += f"{name:>{col_width}}  "
+        header += _rpad(name, col_w) + "  "
 
     # Build date rows
     today = datetime.now(TZ).date()
@@ -108,16 +116,16 @@ def _build_prediction_table(
     for day_idx in range(3):
         date = today + timedelta(days=day_idx + 1)
         date_str = date.strftime("%m-%d")
-        row = f"{date_str} "
+        row = date_str + " "
         for curr_idx in range(len(currency_names)):
             val = pred_values[curr_idx][day_idx] if day_idx < len(pred_values[curr_idx]) else "--"
-            row += f"{val:>{col_width}}  "
+            row += _rpad(val, col_w) + "  "
         rows.append(row)
 
-    # Build trend row
-    trend_row = "趋势  "
+    # Build trend row — "趋势" is 4 display-width, pad to label_w
+    trend_row = "趋势" + " " * (label_w - 4 + 1)
     for trend in trends:
-        trend_row += f"{trend:>{col_width}}  "
+        trend_row += _rpad(trend, col_w) + "  "
 
     lines = [header] + rows + [trend_row]
     return "\n".join(lines)
