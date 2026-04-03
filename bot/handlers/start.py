@@ -151,10 +151,13 @@ async def _save_user(update: Update, context: ContextTypes.DEFAULT_TYPE, home_cu
     else:
         await update.message.reply_text(summary)
 
-    # Send first rate notification immediately
+    # Send first rate notification immediately and mark as notified
     message = await build_rate_message(user.id)
     if message:
         await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+        from datetime import datetime
+        from bot.config import TZ
+        database.update_last_notified(user.id, datetime.now(TZ).isoformat(timespec="seconds"))
 
     return ConversationHandler.END
 
