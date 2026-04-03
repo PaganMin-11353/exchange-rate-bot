@@ -19,6 +19,7 @@ usage() {
     echo "  start     — start the bot"
     echo "  api       — show monthly API call count"
     echo "  users     — show registered users"
+    echo "  reset-user <id> — delete a user and their settings"
     echo "  db        — open sqlite3 shell"
     echo "  help      — show this message"
 }
@@ -112,6 +113,23 @@ case "${1:-}" in
                  FROM users u
                  LEFT JOIN user_targets ut ON u.user_id = ut.user_id
                  GROUP BY u.user_id;"
+        else
+            echo "No database yet"
+        fi
+        ;;
+
+    reset-user)
+        command -v sqlite3 >/dev/null 2>&1 || { echo "ERROR: sqlite3 not found."; exit 1; }
+        if [ -z "${2:-}" ]; then
+            echo "Usage: $0 reset-user <user_id>"
+            echo ""
+            echo "Current users:"
+            sqlite3 "$DB" -header -column "SELECT user_id, username FROM users;" 2>/dev/null || echo "No database yet"
+            exit 1
+        fi
+        if [ -f "$DB" ]; then
+            sqlite3 "$DB" "DELETE FROM user_targets WHERE user_id = $2; DELETE FROM users WHERE user_id = $2;"
+            echo "User $2 deleted. They can re-run /start as a new user."
         else
             echo "No database yet"
         fi

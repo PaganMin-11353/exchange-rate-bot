@@ -339,9 +339,18 @@ async def choose_remove_target_callback(update: Update, context: ContextTypes.DE
 
     if data.startswith("rmtarget_"):
         currency = data.removeprefix("rmtarget_")
+        targets = database.get_user_targets(user_id)
+        if len(targets) <= 1:
+            await query.edit_message_text(
+                "至少保留1个目标货币",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("返回", callback_data="target_back_to_menu")],
+                ]),
+            )
+            return CHOOSE_TARGET_ACTION
         database.remove_user_target(user_id, currency)
         targets = database.get_user_targets(user_id)
-        text = f"已删除 {currency}\n当前目标货币: {', '.join(targets) if targets else '无'}\n\n"
+        text = f"已删除 {currency}\n当前目标货币: {', '.join(targets)}\n\n"
         text += _main_menu_text(user_id)
         await query.edit_message_text(text, reply_markup=_main_menu_keyboard())
         return CHOOSE_ACTION
