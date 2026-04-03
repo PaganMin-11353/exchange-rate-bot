@@ -37,7 +37,14 @@ def compute_change_and_avg(base: str, target: str) -> tuple[float | None, float 
     return change_24h, avg_7d
 
 
-def format_pair_line(home: str, target: str, rate: float, change_24h: float | None, avg_7d: float | None) -> str:
+def format_pair_line(
+    home: str,
+    target: str,
+    rate: float,
+    change_24h: float | None,
+    avg_7d: float | None,
+    suggestion: tuple[str, str] | None = None,
+) -> str:
     """Format a single currency pair block within the notification message."""
     lines = [f"{home} \u2192 {target}: {rate:.4f}"]
 
@@ -56,7 +63,13 @@ def format_pair_line(home: str, target: str, rate: float, change_24h: float | No
         avg_str = "\u6682\u65e0\u6570\u636e"
 
     lines.append(f"  24h: {change_str}  |  7d avg: {avg_str}")
-    lines.append("  \U0001f4a1 \u5efa\u8bae: \u7a0d\u540e\u6dfb\u52a0")
+
+    # Buy/sell suggestion
+    if suggestion is not None:
+        action, reason = suggestion
+        lines.append(f"  \U0001f4a1 \u5efa\u8bae: {action} \u2014 {reason}")
+    else:
+        lines.append("  \U0001f4a1 \u5efa\u8bae: \u6682\u65e0")
 
     return "\n".join(lines)
 
@@ -86,6 +99,7 @@ def format_rate_message(home_currency: str, targets: list[dict]) -> str:
             t["rate"],
             t.get("change_24h"),
             t.get("avg_7d"),
+            t.get("suggestion"),
         )
         lines.append(pair_block)
         lines.append("")

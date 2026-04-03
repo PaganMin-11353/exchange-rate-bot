@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot import database
+from bot.services.analyzer import get_suggestion
 from bot.services.exchange_api import get_rate
 from bot.utils.formatting import compute_change_and_avg, format_rate_message
 
@@ -43,11 +44,15 @@ async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         rate, _fetched_at = result
         change_24h, avg_7d = compute_change_and_avg(home, target_currency)
 
+        history = database.get_rate_history(home, target_currency, days=30)
+        suggestion = get_suggestion(rate, history)
+
         target_data.append({
             "target_currency": target_currency,
             "rate": rate,
             "change_24h": change_24h,
             "avg_7d": avg_7d,
+            "suggestion": suggestion,
         })
 
     if not target_data:
