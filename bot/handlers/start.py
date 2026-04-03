@@ -47,7 +47,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             f"您已完成初始化。\n"
             f"持有货币: {home}\n"
             f"跟踪目标: {', '.join(targets) if targets else '无'}\n"
-            f"推送间隔: {_interval_label(interval)}\n\n"
+            f"推送间隔: {interval_label(interval)}\n\n"
             f"是否重新设置？"
         )
         keyboard = InlineKeyboardMarkup([
@@ -172,4 +172,5 @@ start_conversation = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel)],
     per_user=True,
     per_chat=True,
+    conversation_timeout=300,
 )

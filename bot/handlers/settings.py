@@ -417,4 +417,5 @@ settings_conversation = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel)],
     per_user=True,
     per_chat=True,
+    conversation_timeout=300,
 )

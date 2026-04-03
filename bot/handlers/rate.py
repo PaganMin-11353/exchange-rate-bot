@@ -1,5 +1,6 @@
 """Handler for /rate — show current exchange rates for the user's targets."""
 
+import asyncio
 import logging
 
 from telegram import Update
@@ -14,9 +15,9 @@ from bot.utils.formatting import compute_change_and_avg, format_rate_message
 logger = logging.getLogger(__name__)
 
 
-def _prediction_summary(base: str, target: str) -> str | None:
+async def _prediction_summary(base: str, target: str) -> str | None:
     """Build a short prediction summary string like '3.45 → 3.46 → 3.47'."""
-    preds = predict_next_days(base, target, days=3)
+    preds = await asyncio.to_thread(predict_next_days, base, target, 3)
     if not preds:
         return None
     return " → ".join(f"{p['rate']:.4f}" for p in preds) + " (3天)"
@@ -63,11 +64,11 @@ async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         }
 
         if show_suggestion:
-            history = database.get_rate_history(home, target_currency, days=30)
+            history = database.get_rate_history(home, target_currency, limit=30)
             entry["suggestion"] = get_suggestion(rate, history)
 
         if show_prediction:
-            entry["prediction_summary"] = _prediction_summary(home, target_currency)
+            entry["prediction_summary"] = await _prediction_summary(home, target_currency)
 
         target_data.append(entry)
 

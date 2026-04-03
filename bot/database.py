@@ -201,14 +201,23 @@ def insert_rates_bulk(rows: list[tuple[str, str, float, str]]) -> None:
         )
 
 
-def get_rate_history(base: str, target: str, days: int = 30) -> list[dict]:
+def get_rate_history(base: str, target: str, limit: int = 30) -> list[dict]:
+    """Get recent rate history, ordered by fetched_at DESC. limit=0 for all rows."""
     with _connect() as conn:
-        rows = conn.execute(
-            """SELECT rate, fetched_at FROM rate_history
-               WHERE base_currency=? AND target_currency=?
-               ORDER BY fetched_at DESC LIMIT ?""",
-            (base, target, days),
-        ).fetchall()
+        if limit > 0:
+            rows = conn.execute(
+                """SELECT rate, fetched_at FROM rate_history
+                   WHERE base_currency=? AND target_currency=?
+                   ORDER BY fetched_at DESC LIMIT ?""",
+                (base, target, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT rate, fetched_at FROM rate_history
+                   WHERE base_currency=? AND target_currency=?
+                   ORDER BY fetched_at DESC""",
+                (base, target),
+            ).fetchall()
         return [dict(r) for r in rows]
 
 

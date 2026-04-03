@@ -75,6 +75,17 @@ def main() -> None:
     # Build application
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
+    # Error handler
+    async def error_handler(update, context):
+        logger.exception("Unhandled exception: %s", context.error)
+        if update and update.effective_message:
+            try:
+                await update.effective_message.reply_text("出现错误，请稍后重试。")
+            except Exception:
+                pass
+
+    app.add_error_handler(error_handler)
+
     # Register conversation handlers
     app.add_handler(start_conversation)
     app.add_handler(settings_conversation)

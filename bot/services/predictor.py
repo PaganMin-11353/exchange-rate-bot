@@ -1,5 +1,6 @@
 """LightGBM prediction pipeline for exchange rate forecasting."""
 
+import asyncio
 import json
 import logging
 import os
@@ -83,7 +84,8 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     bb = BollingerBands(close=close, window=20)
     df["bb_upper"] = bb.bollinger_hband()
     df["bb_lower"] = bb.bollinger_lband()
-    df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / df["sma_30"]
+    bb_mid = SMAIndicator(close=close, window=20).sma_indicator()
+    df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / bb_mid
 
     # Calendar features
     df["day_of_week"] = df["date"].dt.dayofweek
@@ -102,7 +104,7 @@ def _get_feature_columns(df: pd.DataFrame) -> list[str]:
 def _load_history_df(base: str, target: str) -> pd.DataFrame | None:
     """Load rate history into a date-sorted DataFrame."""
     # Get a large number of rows (all available data)
-    history = database.get_rate_history(base, target, days=10000)
+    history = database.get_rate_history(base, target, limit=0)
     if not history:
         return None
 
@@ -181,9 +183,12 @@ def train_model(base: str, target: str) -> dict | None:
     pred_direction = (predictions - test_df["rate"].values) > 0
     direction_accuracy = float((actual_direction == pred_direction).mean())
 
-    # Save model
+    # Save model atomically (write to temp, then rename) to avoid
+    # race conditions with concurrent predict_next_days reads
     os.makedirs(MODELS_DIR, exist_ok=True)
-    model.save_model(_model_path(base, target))
+    tmp_model = _model_path(base, target) + ".tmp"
+    model.save_model(tmp_model)
+    os.replace(tmp_model, _model_path(base, target))
 
     # Save metadata (feature columns + metrics)
     meta = {
@@ -194,8 +199,10 @@ def train_model(base: str, target: str) -> dict | None:
         "train_rows": len(train_df),
         "test_rows": len(test_df),
     }
-    with open(_meta_path(base, target), "w") as f:
+    tmp_meta = _meta_path(base, target) + ".tmp"
+    with open(tmp_meta, "w") as f:
         json.dump(meta, f, indent=2)
+    os.replace(tmp_meta, _meta_path(base, target))
 
     logger.info(
         "Trained model for %s/%s: RMSE=%.6f, direction_accuracy=%.2f%%",
@@ -296,8 +303,8 @@ def get_model_confidence(base: str, target: str) -> tuple[str, float | None]:
     return (label, accuracy)
 
 
-async def retrain_all_models() -> None:
-    """Retrain models for all active currency pairs, serially."""
+def _retrain_all_sync() -> None:
+    """Retrain models for all active currency pairs, serially (blocking)."""
     pairs = database.get_all_active_pairs()
     if not pairs:
         logger.info("No active pairs, skipping model retrain")
@@ -321,3 +328,8 @@ async def retrain_all_models() -> None:
     logger.info(
         "Model retrain complete: %d success, %d failed/skipped", success, failed
     )
+
+
+async def retrain_all_models() -> None:
+    """Retrain all models in a thread to avoid blocking the event loop."""
+    await asyncio.to_thread(_retrain_all_sync)

@@ -1,5 +1,6 @@
 """Handler for /predict -- show 3-day exchange rate forecast."""
 
+import asyncio
 import logging
 
 from telegram import Update
@@ -49,7 +50,7 @@ async def _send_detailed_prediction(
     update: Update, home: str, target: str
 ) -> None:
     """Send detailed 3-day prediction for a single pair."""
-    predictions = predict_next_days(home, target, days=3)
+    predictions = await asyncio.to_thread(predict_next_days, home, target, 3)
 
     if predictions is None:
         await update.message.reply_text(
@@ -59,7 +60,7 @@ async def _send_detailed_prediction(
         return
 
     # Get current rate from the latest history
-    history = database.get_rate_history(home, target, days=1)
+    history = database.get_rate_history(home, target, limit=1)
     if history:
         current_rate = history[0]["rate"]
     else:
@@ -101,7 +102,7 @@ async def _send_brief_predictions(
     has_any = False
 
     for target in targets:
-        predictions = predict_next_days(home, target, days=3)
+        predictions = await asyncio.to_thread(predict_next_days, home, target, 3)
         if predictions is None:
             lines.append(f"  {target}: 数据不足，暂无预测")
             continue

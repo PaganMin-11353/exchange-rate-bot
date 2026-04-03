@@ -13,7 +13,7 @@ def compute_change_and_avg(base: str, target: str) -> tuple[float | None, float 
     - change_24h_pct: percentage change from ~24h ago to most recent, or None
     - avg_7d: mean of last 7 distinct day rates, or None
     """
-    history = database.get_rate_history(base, target, days=30)
+    history = database.get_rate_history(base, target, limit=30)
     if not history:
         return None, None
 

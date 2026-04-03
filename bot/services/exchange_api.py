@@ -214,7 +214,7 @@ async def fetch_latest_rates(base: str) -> dict[str, float] | None:
             return None
         url = f"https://v6.exchangerate-api.com/v6/{API_KEY}/latest/{base}"
 
-    logger.debug("ExchangeRate-API request: %s", url)
+    logger.debug("ExchangeRate-API request for base: %s", base)
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:

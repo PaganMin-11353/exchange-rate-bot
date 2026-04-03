@@ -18,15 +18,20 @@ def interval_label(hours: int) -> str:
     return f"每{hours}小时"
 
 
+_background_tasks: set[asyncio.Task] = set()
+
+
 def trigger_backfill(home: str, targets: list[str]) -> None:
     """Fire-and-forget backfill for pairs that lack history."""
     for target in targets:
         if not database.has_rate_history(home, target):
             task = asyncio.create_task(backfill_history(home, target))
-            task.add_done_callback(_log_backfill_error)
+            _background_tasks.add(task)
+            task.add_done_callback(_on_backfill_done)
 
 
-def _log_backfill_error(task: asyncio.Task) -> None:
+def _on_backfill_done(task: asyncio.Task) -> None:
+    _background_tasks.discard(task)
     if task.cancelled():
         return
     exc = task.exception()

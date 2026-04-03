@@ -1,5 +1,6 @@
 """Scheduled jobs for fetching and storing exchange rates."""
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -84,7 +85,9 @@ async def dispatch_notifications(context) -> None:
         # Check if enough time has elapsed since last notification
         if last_notified_at:
             try:
-                last_dt = datetime.fromisoformat(last_notified_at).replace(tzinfo=TZ)
+                last_dt = datetime.fromisoformat(last_notified_at)
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=TZ)
             except (ValueError, TypeError):
                 # If the stored timestamp is malformed, treat as never notified
                 last_dt = None
@@ -123,11 +126,11 @@ async def dispatch_notifications(context) -> None:
             }
 
             if show_suggestion:
-                history = database.get_rate_history(home, target_currency, days=30)
+                history = database.get_rate_history(home, target_currency, limit=30)
                 entry["suggestion"] = get_suggestion(rate, history)
 
             if show_prediction:
-                preds = predict_next_days(home, target_currency, days=3)
+                preds = await asyncio.to_thread(predict_next_days, home, target_currency, 3)
                 if preds:
                     entry["prediction_summary"] = " → ".join(
                         f"{p['rate']:.4f}" for p in preds
