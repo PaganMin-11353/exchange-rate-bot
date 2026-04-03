@@ -18,7 +18,7 @@ from bot.config import (
 
 logger = logging.getLogger(__name__)
 
-_FRANKFURTER_BASE = "https://api.frankfurter.dev"
+_FRANKFURTER_BASE = "https://api.frankfurter.dev/v1"
 _CHUNK_DAYS = 365  # split Frankfurter requests into ~1-year chunks
 
 
