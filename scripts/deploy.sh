@@ -25,24 +25,26 @@ fi
 
 echo "[1/5] .env OK"
 
-# 2. Python venv + deps
+# Determine the actual user (not root when running with sudo)
+DEPLOY_USER="${SUDO_USER:-$(whoami)}"
+
+# 2. Python venv + deps (run as deploy user, not root)
 if [ ! -d venv ]; then
-    python3 -m venv venv
+    sudo -u "$DEPLOY_USER" python3 -m venv venv 2>/dev/null || python3 -m venv venv
 fi
 source venv/bin/activate
 pip install -q -r requirements.txt
 echo "[2/5] Dependencies installed"
 
-# 3. Create data dir
+# 3. Create data dir (owned by deploy user)
 mkdir -p data models
+chown -R "$DEPLOY_USER":"$DEPLOY_USER" data models venv 2>/dev/null || true
 echo "[3/5] Directories ready"
 
 # 4. Install systemd service
 if [ "$(id -u)" -eq 0 ]; then
     # Update WorkingDirectory and ExecStart to match actual location
     sed "s|/opt/exchange-rate-bot|${PROJECT_DIR}|g" "$SERVICE_FILE" > "$SYSTEMD_PATH"
-    # Update User to current SUDO_USER or botuser
-    DEPLOY_USER="${SUDO_USER:-$(whoami)}"
     sed -i "s|User=botuser|User=${DEPLOY_USER}|g" "$SYSTEMD_PATH"
     systemctl daemon-reload
     systemctl enable "$SERVICE_NAME"
