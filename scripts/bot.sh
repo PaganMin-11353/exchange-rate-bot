@@ -7,7 +7,7 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DB="${PROJECT_DIR}/data/bot.db"
 
 usage() {
-    echo "Usage: scripts/bot.sh <command>"
+    echo "Usage: $0 <command>"
     echo ""
     echo "Commands:"
     echo "  status    — service status and memory usage"
@@ -20,6 +20,7 @@ usage() {
     echo "  api       — show monthly API call count"
     echo "  users     — show registered users"
     echo "  db        — open sqlite3 shell"
+    echo "  help      — show this message"
 }
 
 case "${1:-}" in
@@ -36,25 +37,37 @@ case "${1:-}" in
         ;;
 
     logs)
-        sudo journalctl -u "$SERVICE" -f
+        journalctl -u "$SERVICE" -f 2>/dev/null || sudo journalctl -u "$SERVICE" -f
         ;;
 
     log)
         if [ -f "${PROJECT_DIR}/data/bot.log" ]; then
             tail -50 "${PROJECT_DIR}/data/bot.log"
         else
-            echo "No log file yet. Try: scripts/bot.sh logs"
+            echo "No log file yet. Try: $0 logs"
         fi
         ;;
 
     update)
         echo "=== Pulling latest code ==="
         cd "$PROJECT_DIR"
+        if ! git diff --quiet HEAD 2>/dev/null; then
+            echo "WARNING: Local changes detected. Stash or commit before updating."
+            exit 1
+        fi
         git pull
         echo ""
         echo "=== Installing dependencies ==="
-        source venv/bin/activate
-        pip install -q -r requirements.txt
+        if [ ! -f venv/bin/pip ]; then
+            echo "ERROR: venv not found. Run deploy.sh first."
+            exit 1
+        fi
+        if ! venv/bin/python -c "import sys" 2>/dev/null; then
+            echo "WARNING: venv appears broken, recreating..."
+            rm -rf venv
+            python3 -m venv venv
+        fi
+        venv/bin/pip install -q -r requirements.txt
         echo ""
         echo "=== Restarting ==="
         sudo systemctl restart "$SERVICE"
@@ -64,6 +77,7 @@ case "${1:-}" in
 
     restart)
         sudo systemctl restart "$SERVICE"
+        sleep 2
         systemctl status "$SERVICE" --no-pager
         ;;
 
@@ -79,6 +93,7 @@ case "${1:-}" in
         ;;
 
     api)
+        command -v sqlite3 >/dev/null 2>&1 || { echo "ERROR: sqlite3 not found."; exit 1; }
         if [ -f "$DB" ]; then
             echo "=== Monthly API Usage ==="
             sqlite3 "$DB" "SELECT month, call_count FROM api_usage ORDER BY month DESC LIMIT 6;"
@@ -88,6 +103,7 @@ case "${1:-}" in
         ;;
 
     users)
+        command -v sqlite3 >/dev/null 2>&1 || { echo "ERROR: sqlite3 not found."; exit 1; }
         if [ -f "$DB" ]; then
             echo "=== Registered Users ==="
             sqlite3 "$DB" -header -column \
@@ -102,7 +118,9 @@ case "${1:-}" in
         ;;
 
     db)
+        command -v sqlite3 >/dev/null 2>&1 || { echo "ERROR: sqlite3 not found."; exit 1; }
         if [ -f "$DB" ]; then
+            set +e
             sqlite3 "$DB"
         else
             echo "No database yet"

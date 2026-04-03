@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # One-click deploy script for exchange-rate-bot
+# Usage: sudo scripts/deploy.sh
 # Prerequisite: code already cloned, .env already filled with bot token
 set -euo pipefail
 
@@ -10,7 +11,15 @@ SYSTEMD_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 
 cd "$PROJECT_DIR"
 
+# Dependency check
+for cmd in python3 git; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found. Install it first."; exit 1; }
+done
+
 echo "=== Exchange Rate Bot Deploy ==="
+
+# Determine the actual user (not root when running with sudo)
+DEPLOY_USER="${SUDO_USER:-$(whoami)}"
 
 # 1. Check .env
 if [ ! -f .env ]; then
@@ -23,35 +32,40 @@ if grep -q "your_bot_token_here" .env; then
     exit 1
 fi
 
+if grep -q "your_api_key_here" .env && ! grep -q "USE_OPEN_API=true" .env; then
+    echo "WARNING: EXCHANGERATE_API_KEY has placeholder and USE_OPEN_API is not true."
+    echo "         The bot will fail to fetch rates. Set USE_OPEN_API=true or fill in the key."
+fi
+
+chmod 600 .env
 echo "[1/5] .env OK"
 
-# Determine the actual user (not root when running with sudo)
-DEPLOY_USER="${SUDO_USER:-$(whoami)}"
-
-# 2. Python venv + deps (run as deploy user, not root)
+# 2. Python venv + deps (run as deploy user to avoid root-owned files)
 if [ ! -d venv ]; then
-    sudo -u "$DEPLOY_USER" python3 -m venv venv 2>/dev/null || python3 -m venv venv
+    sudo -u "$DEPLOY_USER" python3 -m venv venv
 fi
-source venv/bin/activate
-pip install -q -r requirements.txt
+sudo -u "$DEPLOY_USER" ./venv/bin/pip install -q -r requirements.txt
 echo "[2/5] Dependencies installed"
 
 # 3. Create data dir (owned by deploy user)
 mkdir -p data models
-chown -R "$DEPLOY_USER":"$DEPLOY_USER" data models venv 2>/dev/null || true
+chown -R "${DEPLOY_USER}:${DEPLOY_USER}" data models venv .env || {
+    echo "WARNING: Could not chown directories to ${DEPLOY_USER}"
+}
 echo "[3/5] Directories ready"
 
 # 4. Install systemd service
 if [ "$(id -u)" -eq 0 ]; then
-    # Update WorkingDirectory and ExecStart to match actual location
-    sed "s|/opt/exchange-rate-bot|${PROJECT_DIR}|g" "$SERVICE_FILE" > "$SYSTEMD_PATH"
-    sed -i "s|User=botuser|User=${DEPLOY_USER}|g" "$SYSTEMD_PATH"
+    # Combine sed substitutions into one command (avoids non-portable sed -i)
+    sed -e "s|/opt/exchange-rate-bot|${PROJECT_DIR}|g" \
+        -e "s|User=botuser|User=${DEPLOY_USER}|g" \
+        "$SERVICE_FILE" > "$SYSTEMD_PATH"
     systemctl daemon-reload
     systemctl enable "$SERVICE_NAME"
     echo "[4/5] systemd service installed (user: ${DEPLOY_USER})"
 else
     echo "[4/5] SKIP: not root, run with sudo to install systemd service"
-    echo "       Or manually: sudo cp ${SERVICE_FILE} ${SYSTEMD_PATH}"
+    echo "       Or manually: sudo cp '${SERVICE_FILE}' '${SYSTEMD_PATH}'"
 fi
 
 # 5. Start or restart
@@ -71,6 +85,6 @@ fi
 echo ""
 echo "=== Deploy complete ==="
 echo "Commands:"
-echo "  scripts/bot.sh status   — check bot status"
-echo "  scripts/bot.sh logs     — view live logs"
-echo "  scripts/bot.sh update   — pull latest code and restart"
+echo "  $0 status   — check bot status"
+echo "  $0 logs     — view live logs"
+echo "  $0 update   — pull latest code and restart"
