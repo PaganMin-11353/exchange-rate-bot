@@ -6,7 +6,6 @@ __pycache__/
 .env.*
 !.env.example
 data/
-models/
 venv/
 *.db
 .DS_Store

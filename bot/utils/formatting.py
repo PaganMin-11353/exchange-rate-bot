@@ -44,6 +44,9 @@ def format_pair_line(
     change_24h: float | None,
     avg_7d: float | None,
     suggestion: tuple[str, str] | None = None,
+    prediction_summary: str | None = None,
+    show_suggestion: bool = True,
+    show_prediction: bool = True,
 ) -> str:
     """Format a single currency pair block within the notification message."""
     lines = [f"{home} \u2192 {target}: {rate:.4f}"]
@@ -64,17 +67,27 @@ def format_pair_line(
 
     lines.append(f"  24h: {change_str}  |  7d avg: {avg_str}")
 
+    # 3-day prediction summary
+    if show_prediction and prediction_summary:
+        lines.append(f"  \U0001f4c8 \u9884\u6d4b: {prediction_summary}")
+
     # Buy/sell suggestion
-    if suggestion is not None:
-        action, reason = suggestion
-        lines.append(f"  \U0001f4a1 \u5efa\u8bae: {action} \u2014 {reason}")
-    else:
-        lines.append("  \U0001f4a1 \u5efa\u8bae: \u6682\u65e0")
+    if show_suggestion:
+        if suggestion is not None:
+            action, reason = suggestion
+            lines.append(f"  \U0001f4a1 \u5efa\u8bae: {action} \u2014 {reason}")
+        else:
+            lines.append("  \U0001f4a1 \u5efa\u8bae: \u6682\u65e0")
 
     return "\n".join(lines)
 
 
-def format_rate_message(home_currency: str, targets: list[dict]) -> str:
+def format_rate_message(
+    home_currency: str,
+    targets: list[dict],
+    show_prediction: bool = True,
+    show_suggestion: bool = True,
+) -> str:
     """Format the full rate notification message.
 
     Each target dict should have:
@@ -82,6 +95,8 @@ def format_rate_message(home_currency: str, targets: list[dict]) -> str:
         - rate: float
         - change_24h: float | None  (percentage)
         - avg_7d: float | None
+        - suggestion: tuple[str, str] | None (optional)
+        - prediction_summary: str | None (optional)
     """
     today_str = datetime.now(TZ).strftime("%Y-%m-%d")
 
@@ -100,6 +115,9 @@ def format_rate_message(home_currency: str, targets: list[dict]) -> str:
             t.get("change_24h"),
             t.get("avg_7d"),
             t.get("suggestion"),
+            t.get("prediction_summary"),
+            show_suggestion=show_suggestion,
+            show_prediction=show_prediction,
         )
         lines.append(pair_block)
         lines.append("")

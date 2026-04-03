@@ -8,9 +8,18 @@ from telegram.ext import ContextTypes
 from bot import database
 from bot.services.analyzer import get_suggestion
 from bot.services.exchange_api import get_rate
+from bot.services.predictor import predict_next_days
 from bot.utils.formatting import compute_change_and_avg, format_rate_message
 
 logger = logging.getLogger(__name__)
+
+
+def _prediction_summary(base: str, target: str) -> str | None:
+    """Build a short prediction summary string like '3.45 → 3.46 → 3.47'."""
+    preds = predict_next_days(base, target, days=3)
+    if not preds:
+        return None
+    return " → ".join(f"{p['rate']:.4f}" for p in preds) + " (3天)"
 
 
 async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -25,6 +34,8 @@ async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     home = db_user["home_currency"]
+    show_prediction = bool(db_user["show_prediction"])
+    show_suggestion = bool(db_user["show_suggestion"])
     targets = database.get_user_targets(user.id)
 
     if not targets:
@@ -44,16 +55,21 @@ async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         rate, _fetched_at = result
         change_24h, avg_7d = compute_change_and_avg(home, target_currency)
 
-        history = database.get_rate_history(home, target_currency, days=30)
-        suggestion = get_suggestion(rate, history)
-
-        target_data.append({
+        entry: dict = {
             "target_currency": target_currency,
             "rate": rate,
             "change_24h": change_24h,
             "avg_7d": avg_7d,
-            "suggestion": suggestion,
-        })
+        }
+
+        if show_suggestion:
+            history = database.get_rate_history(home, target_currency, days=30)
+            entry["suggestion"] = get_suggestion(rate, history)
+
+        if show_prediction:
+            entry["prediction_summary"] = _prediction_summary(home, target_currency)
+
+        target_data.append(entry)
 
     if not target_data:
         await update.message.reply_text(
@@ -61,5 +77,5 @@ async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
-    message = format_rate_message(home, target_data)
+    message = format_rate_message(home, target_data, show_prediction, show_suggestion)
     await update.message.reply_text(message)

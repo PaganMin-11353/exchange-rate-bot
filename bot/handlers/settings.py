@@ -33,6 +33,10 @@ CHOOSE_REMOVE_TARGET = 5
 CHOOSE_INTERVAL = 6
 
 
+def _on_off(val: int) -> str:
+    return "开" if val else "关"
+
+
 def _main_menu_text(user_id: int) -> str:
     user = database.get_user(user_id)
     targets = database.get_user_targets(user_id)
@@ -40,7 +44,9 @@ def _main_menu_text(user_id: int) -> str:
         f"当前设置：\n"
         f"持有货币: {user['home_currency']}\n"
         f"目标货币: {', '.join(targets) if targets else '无'}\n"
-        f"推送间隔: {interval_label(user['interval_hours'])}\n\n"
+        f"推送间隔: {interval_label(user['interval_hours'])}\n"
+        f"显示预测: {_on_off(user['show_prediction'])}\n"
+        f"显示建议: {_on_off(user['show_suggestion'])}\n\n"
         f"请选择要修改的项目："
     )
 
@@ -53,6 +59,12 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("修改推送间隔", callback_data="settings_interval"),
+        ],
+        [
+            InlineKeyboardButton("切换预测显示", callback_data="settings_toggle_prediction"),
+            InlineKeyboardButton("切换建议显示", callback_data="settings_toggle_suggestion"),
+        ],
+        [
             InlineKeyboardButton("取消", callback_data="settings_cancel"),
         ],
     ])
@@ -115,6 +127,20 @@ async def choose_action_callback(update: Update, context: ContextTypes.DEFAULT_T
         )
         await query.edit_message_text("请选择推送间隔：", reply_markup=keyboard)
         return CHOOSE_INTERVAL
+
+    if data == "settings_toggle_prediction":
+        new_val = database.toggle_show_prediction(update.effective_user.id)
+        status = "开启" if new_val else "关闭"
+        text = f"预测显示已{status}\n\n" + _main_menu_text(update.effective_user.id)
+        await query.edit_message_text(text, reply_markup=_main_menu_keyboard())
+        return CHOOSE_ACTION
+
+    if data == "settings_toggle_suggestion":
+        new_val = database.toggle_show_suggestion(update.effective_user.id)
+        status = "开启" if new_val else "关闭"
+        text = f"建议显示已{status}\n\n" + _main_menu_text(update.effective_user.id)
+        await query.edit_message_text(text, reply_markup=_main_menu_keyboard())
+        return CHOOSE_ACTION
 
     return CHOOSE_ACTION
 

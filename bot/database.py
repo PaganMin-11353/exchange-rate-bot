@@ -16,6 +16,8 @@ def initialize():
                 username TEXT,
                 home_currency TEXT NOT NULL DEFAULT 'SGD',
                 interval_hours INTEGER NOT NULL DEFAULT 24,
+                show_prediction INTEGER DEFAULT 1,
+                show_suggestion INTEGER DEFAULT 1,
                 last_notified_at TEXT,
                 created_at TEXT DEFAULT (datetime('now')),
                 is_active INTEGER DEFAULT 1
@@ -97,6 +99,22 @@ def update_user_home_currency(user_id: int, home_currency: str) -> None:
 def update_user_interval(user_id: int, interval_hours: int) -> None:
     with _connect() as conn:
         conn.execute("UPDATE users SET interval_hours=? WHERE user_id=?", (interval_hours, user_id))
+
+
+def toggle_show_prediction(user_id: int) -> bool:
+    """Toggle show_prediction and return new value."""
+    with _connect() as conn:
+        conn.execute("UPDATE users SET show_prediction = 1 - show_prediction WHERE user_id=?", (user_id,))
+        row = conn.execute("SELECT show_prediction FROM users WHERE user_id=?", (user_id,)).fetchone()
+        return bool(row["show_prediction"])
+
+
+def toggle_show_suggestion(user_id: int) -> bool:
+    """Toggle show_suggestion and return new value."""
+    with _connect() as conn:
+        conn.execute("UPDATE users SET show_suggestion = 1 - show_suggestion WHERE user_id=?", (user_id,))
+        row = conn.execute("SELECT show_suggestion FROM users WHERE user_id=?", (user_id,)).fetchone()
+        return bool(row["show_suggestion"])
 
 
 def update_last_notified(user_id: int, timestamp: str) -> None:

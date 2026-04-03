@@ -9,7 +9,7 @@ from bot import database
 from bot.config import TZ
 from bot.services.analyzer import get_suggestion
 from bot.services.exchange_api import get_rate
-from bot.services.predictor import retrain_all_models
+from bot.services.predictor import predict_next_days, retrain_all_models
 from bot.utils.formatting import compute_change_and_avg, format_rate_message
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,8 @@ async def dispatch_notifications(context) -> None:
 
         # Build the notification message (same as /rate)
         home = user["home_currency"]
+        show_prediction = bool(user["show_prediction"])
+        show_suggestion = bool(user["show_suggestion"])
         targets = database.get_user_targets(user_id)
         if not targets:
             skipped += 1
@@ -113,22 +115,31 @@ async def dispatch_notifications(context) -> None:
             rate, _fetched_at = result
             change_24h, avg_7d = compute_change_and_avg(home, target_currency)
 
-            history = database.get_rate_history(home, target_currency, days=30)
-            suggestion = get_suggestion(rate, history)
-
-            target_data.append({
+            entry: dict = {
                 "target_currency": target_currency,
                 "rate": rate,
                 "change_24h": change_24h,
                 "avg_7d": avg_7d,
-                "suggestion": suggestion,
-            })
+            }
+
+            if show_suggestion:
+                history = database.get_rate_history(home, target_currency, days=30)
+                entry["suggestion"] = get_suggestion(rate, history)
+
+            if show_prediction:
+                preds = predict_next_days(home, target_currency, days=3)
+                if preds:
+                    entry["prediction_summary"] = " → ".join(
+                        f"{p['rate']:.4f}" for p in preds
+                    ) + " (3天)"
+
+            target_data.append(entry)
 
         if not target_data:
             skipped += 1
             continue
 
-        message = format_rate_message(home, target_data)
+        message = format_rate_message(home, target_data, show_prediction, show_suggestion)
 
         try:
             await context.bot.send_message(chat_id=chat_id, text=message)
