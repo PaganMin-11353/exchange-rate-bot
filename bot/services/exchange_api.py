@@ -10,6 +10,7 @@ from bot import database
 from bot.config import (
     API_KEY,
     CACHE_TTL_HOURS,
+    MONTHLY_API_CALL_LIMIT,
     PRESET_CURRENCIES,
     TZ,
     USE_OPEN_API,
@@ -192,7 +193,19 @@ async def fetch_latest_rates(base: str) -> dict[str, float] | None:
     """Fetch latest rates from ExchangeRate-API.
 
     Returns dict of target->rate, or None on failure.
+    Respects MONTHLY_API_CALL_LIMIT — returns None if limit reached.
     """
+    # Check monthly API usage before making a call
+    current_calls = database.get_monthly_api_calls()
+    if current_calls >= MONTHLY_API_CALL_LIMIT:
+        logger.warning(
+            "Monthly API call limit reached (%d/%d), skipping fetch for %s — serving stale cache",
+            current_calls,
+            MONTHLY_API_CALL_LIMIT,
+            base,
+        )
+        return None
+
     if USE_OPEN_API:
         url = f"https://open.er-api.com/v6/latest/{base}"
     else:
@@ -218,6 +231,10 @@ async def fetch_latest_rates(base: str) -> dict[str, float] | None:
     if not rates or not isinstance(rates, dict):
         logger.warning("ExchangeRate-API unexpected response for %s: %s", base, data)
         return None
+
+    # Track successful API call
+    new_count = database.increment_api_calls()
+    logger.debug("API call count this month: %d/%d", new_count, MONTHLY_API_CALL_LIMIT)
 
     # Filter out base currency itself and ensure float values
     return {k: float(v) for k, v in rates.items() if k != base}

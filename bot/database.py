@@ -1,6 +1,8 @@
 import sqlite3
 from contextlib import contextmanager
-from bot.config import DB_PATH
+from datetime import datetime
+
+from bot.config import DB_PATH, TZ
 
 
 def initialize():
@@ -44,6 +46,11 @@ def initialize():
                 base_currency TEXT PRIMARY KEY,
                 rates_json TEXT NOT NULL,
                 fetched_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS api_usage (
+                month TEXT PRIMARY KEY,
+                call_count INTEGER DEFAULT 0
             );
         """)
 
@@ -238,3 +245,35 @@ def update_cache(base: str, rates_json: str, fetched_at: str) -> None:
                    fetched_at=excluded.fetched_at""",
             (base, rates_json, fetched_at),
         )
+
+
+# ── API Usage Counter ──
+
+def _current_month() -> str:
+    """Return current month string like '2026-04' in Asia/Shanghai timezone."""
+    return datetime.now(TZ).strftime("%Y-%m")
+
+
+def increment_api_calls() -> int:
+    """Increment this month's API call count and return the new count."""
+    month = _current_month()
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO api_usage (month, call_count) VALUES (?, 1)
+               ON CONFLICT(month) DO UPDATE SET call_count = call_count + 1""",
+            (month,),
+        )
+        row = conn.execute(
+            "SELECT call_count FROM api_usage WHERE month=?", (month,)
+        ).fetchone()
+        return row["call_count"]
+
+
+def get_monthly_api_calls() -> int:
+    """Get this month's API call count."""
+    month = _current_month()
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT call_count FROM api_usage WHERE month=?", (month,)
+        ).fetchone()
+        return row["call_count"] if row else 0

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import logging.handlers
 import os
 from datetime import datetime, timedelta
 
@@ -41,15 +42,31 @@ async def _run_backfill() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=getattr(logging, LOG_LEVEL),
-    )
-    logger = logging.getLogger(__name__)
-
-    # Ensure data and models directories exist
+    # Ensure data and models directories exist (before setting up file logging)
     os.makedirs("data", exist_ok=True)
     os.makedirs("models", exist_ok=True)
+
+    # Configure logging: console at INFO, file at DEBUG with rotation
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
+    # Console handler — INFO level
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(getattr(logging, LOG_LEVEL))
+    console_handler.setFormatter(logging.Formatter(log_format))
+    root_logger.addHandler(console_handler)
+
+    # File handler — DEBUG level, 5 MB rotation, 2 backups
+    file_handler = logging.handlers.RotatingFileHandler(
+        "data/bot.log", maxBytes=5 * 1024 * 1024, backupCount=2, encoding="utf-8"
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(log_format))
+    root_logger.addHandler(file_handler)
+
+    logger = logging.getLogger(__name__)
 
     # Initialize database
     database.initialize()
