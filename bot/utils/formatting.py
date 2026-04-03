@@ -146,8 +146,8 @@ def _build_advice(home_currency: str, targets: list[dict]) -> str:
             advices.append(f"适合用{target}换{home_currency}")
 
     if not advices:
-        return "*建议: 暂无明显换汇机会*"
-    return f"*建议: {', '.join(advices)}*"
+        return "<b>建议: 暂无明显换汇机会</b>"
+    return f"<b>建议: {', '.join(advices)}</b>"
 
 
 def format_rate_message(
@@ -158,15 +158,14 @@ def format_rate_message(
 ) -> str:
     """Format the compact rate notification message.
 
-    Uses Telegram MarkdownV2 for bold title and advice.
-    Prediction table uses monospace code block.
+    Uses Telegram HTML mode for formatting.
     """
     today_str = datetime.now(TZ).strftime("%m-%d")
 
     # Bold title
-    lines = [f"*\U0001f4ca {today_str} {home_currency} 汇率*", ""]
+    lines = [f"<b>\U0001f4ca {today_str} {home_currency} 汇率</b>", ""]
 
-    # Rate lines
+    # Rate lines with monospace numbers
     for t in targets:
         target = t["target_currency"]
         rate = t["rate"]
@@ -177,14 +176,14 @@ def format_rate_message(
             sign = "+" if change_24h > 0 else ""
             change_str = f"{arrow}{sign}{change_24h:.2f}%"
         else:
-            change_str = "\u002d\u002d"
+            change_str = "--"
 
         suggestion_str = ""
         if show_suggestion:
             label = _suggestion_label(t.get("suggestion"))
             suggestion_str = f" {label}"
 
-        lines.append(f"{target} {rate:.4f} {change_str}{suggestion_str}")
+        lines.append(f"{target} <code>{rate:.4f}</code> {change_str}{suggestion_str}")
 
     # Prediction table
     if show_prediction:
@@ -192,7 +191,7 @@ def format_rate_message(
         if table:
             lines.append("")
             lines.append("3日预测:")
-            lines.append(f"```\n{table}\n```")
+            lines.append(f"<pre>{table}</pre>")
 
     # Bold advice
     if show_suggestion:

@@ -145,7 +145,7 @@ async def dispatch_notifications(context) -> None:
         message = format_rate_message(home, target_data, show_prediction, show_suggestion)
 
         try:
-            await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
+            await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
             database.update_last_notified(user_id, now.isoformat(timespec="seconds"))
             sent += 1
         except Forbidden:

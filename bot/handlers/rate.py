@@ -92,4 +92,4 @@ async def rate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("暂时无法获取汇率数据，请稍后再试。")
         return
 
-    await update.message.reply_text(message, parse_mode="Markdown")
+    await update.message.reply_text(message, parse_mode="HTML")

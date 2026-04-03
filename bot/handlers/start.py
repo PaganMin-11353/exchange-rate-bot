@@ -154,7 +154,7 @@ async def _save_user(update: Update, context: ContextTypes.DEFAULT_TYPE, home_cu
     # Send first rate notification immediately
     message = await build_rate_message(user.id)
     if message:
-        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
+        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
     return ConversationHandler.END
 
