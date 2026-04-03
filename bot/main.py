@@ -4,12 +4,13 @@ import os
 
 from telegram.ext import Application, CommandHandler
 
-from bot.config import TELEGRAM_TOKEN, LOG_LEVEL, RATE_FETCH_INTERVAL_SECONDS
+from bot.config import TELEGRAM_TOKEN, LOG_LEVEL, RATE_FETCH_INTERVAL_SECONDS, NOTIFICATION_CHECK_INTERVAL_SECONDS
 from bot import database
 from bot.handlers.start import start_conversation
 from bot.handlers.settings import settings_conversation
+from bot.handlers.rate import rate_command
 from bot.services.exchange_api import backfill_preset_currencies
-from bot.services.scheduler import fetch_and_store_rates
+from bot.services.scheduler import fetch_and_store_rates, dispatch_notifications
 
 
 _background_tasks: set[asyncio.Task] = set()
@@ -59,6 +60,9 @@ def main() -> None:
     app.add_handler(start_conversation)
     app.add_handler(settings_conversation)
 
+    # Register simple command handlers
+    app.add_handler(CommandHandler("rate", rate_command))
+
     # Register scheduled jobs
     app.job_queue.run_repeating(
         fetch_and_store_rates,
@@ -68,6 +72,17 @@ def main() -> None:
     )
     logger.info(
         "Rate fetch job registered (every %d seconds)", RATE_FETCH_INTERVAL_SECONDS
+    )
+
+    app.job_queue.run_repeating(
+        dispatch_notifications,
+        interval=NOTIFICATION_CHECK_INTERVAL_SECONDS,
+        first=30,  # first run 30 seconds after startup
+        name="dispatch_notifications",
+    )
+    logger.info(
+        "Notification dispatch job registered (every %d seconds)",
+        NOTIFICATION_CHECK_INTERVAL_SECONDS,
     )
 
     # Start polling
