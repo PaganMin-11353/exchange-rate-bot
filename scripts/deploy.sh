@@ -16,6 +16,17 @@ for cmd in python3 git; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found. Install it first."; exit 1; }
 done
 
+# Ensure python3-venv is available
+if ! python3 -m venv --help >/dev/null 2>&1; then
+    echo "python3-venv not found, installing..."
+    if [ "$(id -u)" -eq 0 ]; then
+        apt-get update -qq && apt-get install -y -qq python3-venv python3-pip
+    else
+        echo "ERROR: python3-venv is missing. Run: sudo apt install python3-venv python3-pip"
+        exit 1
+    fi
+fi
+
 echo "=== Exchange Rate Bot Deploy ==="
 
 # Determine the actual user (not root when running with sudo)
