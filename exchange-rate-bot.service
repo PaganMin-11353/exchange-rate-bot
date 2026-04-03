@@ -1,0 +1,17 @@
+[Unit]
+Description=Exchange Rate Reminder Bot
+After=network.target
+
+[Service]
+Type=simple
+User=botuser
+WorkingDirectory=/opt/exchange-rate-bot
+ExecStart=/opt/exchange-rate-bot/venv/bin/python -m bot.main
+Restart=always
+RestartSec=10
+MemoryMax=150M
+EnvironmentFile=/opt/exchange-rate-bot/.env
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

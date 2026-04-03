@@ -1,0 +1,5 @@
+python-telegram-bot[job-queue]==22.7
+httpx==0.28.*
+lightgbm==4.5.*
+pandas==2.2.*
+ta==0.11.*
