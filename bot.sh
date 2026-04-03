@@ -109,7 +109,14 @@ case "${1:-}" in
         fi
         ;;
 
-    *)
+    help|--help|-h)
         usage
+        ;;
+
+    *)
+        echo "Unknown command: ${1:-}"
+        echo ""
+        usage
+        exit 1
         ;;
 esac
