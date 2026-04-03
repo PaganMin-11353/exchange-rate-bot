@@ -108,7 +108,7 @@ def main() -> None:
     app.job_queue.run_repeating(
         dispatch_notifications,
         interval=NOTIFICATION_CHECK_INTERVAL_SECONDS,
-        first=300,  # first run 5 minutes after startup (avoid duplicate on restart)
+        first=30,  # first run 30 seconds after startup
         name="dispatch_notifications",
     )
     logger.info(
