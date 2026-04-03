@@ -3,12 +3,12 @@
 # Prerequisite: code already cloned, .env already filled with bot token
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SERVICE_NAME="exchange-rate-bot"
-SERVICE_FILE="${SCRIPT_DIR}/${SERVICE_NAME}.service"
+SERVICE_FILE="${PROJECT_DIR}/${SERVICE_NAME}.service"
 SYSTEMD_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 
-cd "$SCRIPT_DIR"
+cd "$PROJECT_DIR"
 
 echo "=== Exchange Rate Bot Deploy ==="
 
@@ -39,9 +39,8 @@ echo "[3/5] Directories ready"
 
 # 4. Install systemd service
 if [ "$(id -u)" -eq 0 ]; then
-    # Running as root — install directly
     # Update WorkingDirectory and ExecStart to match actual location
-    sed "s|/opt/exchange-rate-bot|${SCRIPT_DIR}|g" "$SERVICE_FILE" > "$SYSTEMD_PATH"
+    sed "s|/opt/exchange-rate-bot|${PROJECT_DIR}|g" "$SERVICE_FILE" > "$SYSTEMD_PATH"
     # Update User to current SUDO_USER or botuser
     DEPLOY_USER="${SUDO_USER:-$(whoami)}"
     sed -i "s|User=botuser|User=${DEPLOY_USER}|g" "$SYSTEMD_PATH"
@@ -70,6 +69,6 @@ fi
 echo ""
 echo "=== Deploy complete ==="
 echo "Commands:"
-echo "  ./scripts/bot.sh status   — check bot status"
-echo "  ./scripts/bot.sh logs     — view live logs"
-echo "  ./scripts/bot.sh update   — pull latest code and restart"
+echo "  scripts/bot.sh status   — check bot status"
+echo "  scripts/bot.sh logs     — view live logs"
+echo "  scripts/bot.sh update   — pull latest code and restart"

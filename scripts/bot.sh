@@ -3,11 +3,11 @@
 set -euo pipefail
 
 SERVICE="exchange-rate-bot"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DB="${SCRIPT_DIR}/data/bot.db"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DB="${PROJECT_DIR}/data/bot.db"
 
 usage() {
-    echo "Usage: ./bot.sh <command>"
+    echo "Usage: scripts/bot.sh <command>"
     echo ""
     echo "Commands:"
     echo "  status    — service status and memory usage"
@@ -40,16 +40,16 @@ case "${1:-}" in
         ;;
 
     log)
-        if [ -f "${SCRIPT_DIR}/data/bot.log" ]; then
-            tail -50 "${SCRIPT_DIR}/data/bot.log"
+        if [ -f "${PROJECT_DIR}/data/bot.log" ]; then
+            tail -50 "${PROJECT_DIR}/data/bot.log"
         else
-            echo "No log file yet. Try: ./bot.sh logs"
+            echo "No log file yet. Try: scripts/bot.sh logs"
         fi
         ;;
 
     update)
         echo "=== Pulling latest code ==="
-        cd "$SCRIPT_DIR"
+        cd "$PROJECT_DIR"
         git pull
         echo ""
         echo "=== Installing dependencies ==="
