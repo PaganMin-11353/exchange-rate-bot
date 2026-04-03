@@ -1,11 +1,39 @@
+import asyncio
 import logging
 import os
 
 from telegram.ext import Application, CommandHandler
 
-from bot.config import TELEGRAM_TOKEN, LOG_LEVEL
+from bot.config import TELEGRAM_TOKEN, LOG_LEVEL, RATE_FETCH_INTERVAL_SECONDS
 from bot import database
 from bot.handlers.start import start_handler
+from bot.services.exchange_api import backfill_preset_currencies
+from bot.services.scheduler import fetch_and_store_rates
+
+
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def post_init(application) -> None:
+    """Run after the Application has been initialized.
+
+    Kicks off the historical backfill in the background so it doesn't
+    block the bot from responding to commands.
+    """
+    logger = logging.getLogger(__name__)
+    logger.info("Running post-init: scheduling background backfill")
+    task = asyncio.create_task(_run_backfill())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
+async def _run_backfill() -> None:
+    """Wrapper so backfill exceptions are logged, not silently swallowed."""
+    logger = logging.getLogger(__name__)
+    try:
+        await backfill_preset_currencies()
+    except Exception:
+        logger.exception("Background backfill failed")
 
 
 def main() -> None:
@@ -24,10 +52,21 @@ def main() -> None:
     logger.info("Database initialized")
 
     # Build application
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     # Register handlers
     app.add_handler(CommandHandler("start", start_handler))
+
+    # Register scheduled jobs
+    app.job_queue.run_repeating(
+        fetch_and_store_rates,
+        interval=RATE_FETCH_INTERVAL_SECONDS,
+        first=10,  # first run 10 seconds after startup
+        name="fetch_and_store_rates",
+    )
+    logger.info(
+        "Rate fetch job registered (every %d seconds)", RATE_FETCH_INTERVAL_SECONDS
+    )
 
     # Start polling
     logger.info("Bot starting in polling mode")
