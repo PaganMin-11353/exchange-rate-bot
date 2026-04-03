@@ -127,6 +127,13 @@ def deactivate_user(user_id: int) -> None:
         conn.execute("UPDATE users SET is_active=0 WHERE user_id=?", (user_id,))
 
 
+def delete_user(user_id: int) -> None:
+    """Fully remove a user and their targets."""
+    with _connect() as conn:
+        conn.execute("DELETE FROM user_targets WHERE user_id=?", (user_id,))
+        conn.execute("DELETE FROM users WHERE user_id=?", (user_id,))
+
+
 def get_active_users() -> list[dict]:
     with _connect() as conn:
         rows = conn.execute("SELECT * FROM users WHERE is_active=1").fetchall()

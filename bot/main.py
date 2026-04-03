@@ -12,6 +12,7 @@ from bot.handlers.start import start_conversation
 from bot.handlers.settings import settings_conversation
 from bot.handlers.rate import rate_command
 from bot.handlers.predict import predict_command
+from bot.handlers.reset import reset_command
 from bot.services.exchange_api import backfill_preset_currencies
 from bot.services.scheduler import fetch_and_store_rates, dispatch_notifications, retrain_models
 
@@ -93,6 +94,7 @@ def main() -> None:
     # Register simple command handlers
     app.add_handler(CommandHandler("rate", rate_command))
     app.add_handler(CommandHandler("predict", predict_command))
+    app.add_handler(CommandHandler("reset", reset_command))
 
     # Register scheduled jobs
     app.job_queue.run_repeating(
