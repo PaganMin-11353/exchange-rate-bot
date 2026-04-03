@@ -7,7 +7,9 @@ from telegram.error import Forbidden
 
 from bot import database
 from bot.config import TZ
+from bot.services.analyzer import get_suggestion
 from bot.services.exchange_api import get_rate
+from bot.services.predictor import retrain_all_models
 from bot.utils.formatting import compute_change_and_avg, format_rate_message
 
 logger = logging.getLogger(__name__)
@@ -111,11 +113,15 @@ async def dispatch_notifications(context) -> None:
             rate, _fetched_at = result
             change_24h, avg_7d = compute_change_and_avg(home, target_currency)
 
+            history = database.get_rate_history(home, target_currency, days=30)
+            suggestion = get_suggestion(rate, history)
+
             target_data.append({
                 "target_currency": target_currency,
                 "rate": rate,
                 "change_24h": change_24h,
                 "avg_7d": avg_7d,
+                "suggestion": suggestion,
             })
 
         if not target_data:
@@ -146,3 +152,12 @@ async def dispatch_notifications(context) -> None:
         skipped,
         errors,
     )
+
+
+async def retrain_models(context) -> None:
+    """Job callback: retrain all LightGBM models weekly."""
+    logger.info("Starting weekly model retrain")
+    try:
+        await retrain_all_models()
+    except Exception:
+        logger.exception("Weekly model retrain failed")

@@ -1,16 +1,18 @@
 import asyncio
 import logging
 import os
+from datetime import datetime, timedelta
 
 from telegram.ext import Application, CommandHandler
 
-from bot.config import TELEGRAM_TOKEN, LOG_LEVEL, RATE_FETCH_INTERVAL_SECONDS, NOTIFICATION_CHECK_INTERVAL_SECONDS
+from bot.config import TELEGRAM_TOKEN, LOG_LEVEL, RATE_FETCH_INTERVAL_SECONDS, NOTIFICATION_CHECK_INTERVAL_SECONDS, TZ
 from bot import database
 from bot.handlers.start import start_conversation
 from bot.handlers.settings import settings_conversation
 from bot.handlers.rate import rate_command
+from bot.handlers.predict import predict_command
 from bot.services.exchange_api import backfill_preset_currencies
-from bot.services.scheduler import fetch_and_store_rates, dispatch_notifications
+from bot.services.scheduler import fetch_and_store_rates, dispatch_notifications, retrain_models
 
 
 _background_tasks: set[asyncio.Task] = set()
@@ -62,6 +64,7 @@ def main() -> None:
 
     # Register simple command handlers
     app.add_handler(CommandHandler("rate", rate_command))
+    app.add_handler(CommandHandler("predict", predict_command))
 
     # Register scheduled jobs
     app.job_queue.run_repeating(
@@ -83,6 +86,32 @@ def main() -> None:
     logger.info(
         "Notification dispatch job registered (every %d seconds)",
         NOTIFICATION_CHECK_INTERVAL_SECONDS,
+    )
+
+    # Weekly model retrain: every Monday at 03:00 UTC+8
+    # Calculate seconds until next Monday 03:00 UTC+8
+    now = datetime.now(TZ)
+    # days_until_monday: 0=Mon, 1=Tue, ... 6=Sun
+    days_until_monday = (7 - now.weekday()) % 7
+    if days_until_monday == 0:
+        # Today is Monday; if already past 03:00, schedule for next Monday
+        target_time = now.replace(hour=3, minute=0, second=0, microsecond=0)
+        if now >= target_time:
+            days_until_monday = 7
+    next_monday_3am = now.replace(
+        hour=3, minute=0, second=0, microsecond=0
+    ) + timedelta(days=days_until_monday)
+    first_retrain = (next_monday_3am - now).total_seconds()
+
+    app.job_queue.run_repeating(
+        retrain_models,
+        interval=7 * 24 * 3600,
+        first=first_retrain,
+        name="retrain_models",
+    )
+    logger.info(
+        "Model retrain job registered (weekly Monday 03:00 UTC+8, first in %.0f seconds)",
+        first_retrain,
     )
 
     # Start polling
