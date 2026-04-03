@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 from bot import database
-from bot.config import COMMON_CURRENCIES, DEFAULT_TARGETS, DEFAULT_TARGETS_FALLBACK
+from bot.config import SUPPORTED_CURRENCIES, DEFAULT_TARGETS, DEFAULT_TARGETS_FALLBACK
 from bot.handlers._common import interval_label, trigger_backfill
 from bot.handlers.rate import build_rate_message
 
@@ -119,7 +119,7 @@ async def enter_custom_home(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     """Handle free-text input for a custom home currency."""
     text = update.message.text.strip().upper()
 
-    if text not in COMMON_CURRENCIES:
+    if text not in SUPPORTED_CURRENCIES:
         await update.message.reply_text("无效的货币代码，请重新输入或使用 /cancel 取消")
         return ENTER_CUSTOM_HOME
 

@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from bot import database
 from bot.config import (
-    COMMON_CURRENCIES,
+    SUPPORTED_CURRENCIES,
     DEFAULT_TARGETS,
     DEFAULT_TARGETS_FALLBACK,
     SUPPORTED_INTERVALS,
@@ -171,7 +171,7 @@ async def choose_new_home_callback(update: Update, context: ContextTypes.DEFAULT
 
 async def enter_custom_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip().upper()
-    if text not in COMMON_CURRENCIES:
+    if text not in SUPPORTED_CURRENCIES:
         await update.message.reply_text("无效的货币代码，请重新输入或使用 /cancel 取消")
         return ENTER_CUSTOM_HOME
 
@@ -287,7 +287,7 @@ async def enter_new_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     user_id = update.effective_user.id
     user = database.get_user(user_id)
 
-    if text not in COMMON_CURRENCIES:
+    if text not in SUPPORTED_CURRENCIES:
         await update.message.reply_text("无效的货币代码，请重新输入或使用 /cancel 取消")
         return ENTER_NEW_TARGET
 
