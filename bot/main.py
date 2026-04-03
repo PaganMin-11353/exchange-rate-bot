@@ -6,7 +6,8 @@ from telegram.ext import Application, CommandHandler
 
 from bot.config import TELEGRAM_TOKEN, LOG_LEVEL, RATE_FETCH_INTERVAL_SECONDS
 from bot import database
-from bot.handlers.start import start_handler
+from bot.handlers.start import start_conversation
+from bot.handlers.settings import settings_conversation
 from bot.services.exchange_api import backfill_preset_currencies
 from bot.services.scheduler import fetch_and_store_rates
 
@@ -54,8 +55,9 @@ def main() -> None:
     # Build application
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
-    # Register handlers
-    app.add_handler(CommandHandler("start", start_handler))
+    # Register conversation handlers
+    app.add_handler(start_conversation)
+    app.add_handler(settings_conversation)
 
     # Register scheduled jobs
     app.job_queue.run_repeating(

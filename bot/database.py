@@ -70,6 +70,7 @@ def upsert_user(user_id: int, chat_id: int, username: str | None, home_currency:
                ON CONFLICT(user_id) DO UPDATE SET
                    chat_id=excluded.chat_id,
                    username=excluded.username,
+                   home_currency=excluded.home_currency,
                    is_active=1""",
             (user_id, chat_id, username, home_currency),
         )
