@@ -251,7 +251,10 @@ async def get_rate(base: str, target: str) -> tuple[float, str] | None:
     cached = database.get_cached_rates(base)
     if cached:
         fetched_at = cached["fetched_at"]
-        age = datetime.now(timezone.utc) - datetime.fromisoformat(fetched_at).replace(tzinfo=timezone.utc)
+        parsed = datetime.fromisoformat(fetched_at)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - parsed
         if age < timedelta(hours=CACHE_TTL_HOURS):
             rates = json.loads(cached["rates_json"])
             rate = rates.get(target)
@@ -275,7 +278,7 @@ async def get_rate(base: str, target: str) -> tuple[float, str] | None:
 
     # Append to rate_history — only tracked pairs, not all ~160 currencies
     today_str = datetime.now(TZ).date().isoformat()
-    active_targets = {t for _, t in database.get_all_active_pairs() if _ == base}
+    active_targets = {t for b, t in database.get_all_active_pairs() if b == base}
     active_targets.update(t for t in PRESET_CURRENCIES if t != base)
     for tgt in active_targets:
         rate_val = rates.get(tgt)

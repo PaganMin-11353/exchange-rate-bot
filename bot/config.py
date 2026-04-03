@@ -2,7 +2,9 @@ import os
 from zoneinfo import ZoneInfo
 
 # Telegram
-TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+if not TELEGRAM_TOKEN:
+    raise SystemExit("ERROR: TELEGRAM_BOT_TOKEN environment variable is required")
 
 # Exchange Rate API
 API_KEY = os.environ.get("EXCHANGERATE_API_KEY", "")
