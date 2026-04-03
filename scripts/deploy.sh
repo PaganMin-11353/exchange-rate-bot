@@ -16,13 +16,18 @@ for cmd in python3 git; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found. Install it first."; exit 1; }
 done
 
-# Ensure python3-venv is available
-if ! python3 -m venv --help >/dev/null 2>&1; then
-    echo "python3-venv not found, installing..."
+# Ensure system dependencies are available
+MISSING_PKGS=""
+python3 -m venv --help >/dev/null 2>&1 || MISSING_PKGS="python3-venv python3-pip"
+ldconfig -p 2>/dev/null | grep -q libgomp || MISSING_PKGS="$MISSING_PKGS libgomp1"
+
+if [ -n "$MISSING_PKGS" ]; then
+    echo "Installing system dependencies: $MISSING_PKGS"
     if [ "$(id -u)" -eq 0 ]; then
-        apt-get update -qq && apt-get install -y -qq python3-venv python3-pip
+        apt-get update -qq && apt-get install -y -qq $MISSING_PKGS
     else
-        echo "ERROR: python3-venv is missing. Run: sudo apt install python3-venv python3-pip"
+        echo "ERROR: Missing packages: $MISSING_PKGS"
+        echo "Run: sudo apt install $MISSING_PKGS"
         exit 1
     fi
 fi
