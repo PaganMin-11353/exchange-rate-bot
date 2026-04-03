@@ -12,8 +12,10 @@ from telegram.ext import (
     filters,
 )
 
+from datetime import datetime
+
 from bot import database
-from bot.config import SUPPORTED_CURRENCIES, DEFAULT_TARGETS, DEFAULT_TARGETS_FALLBACK
+from bot.config import DEFAULT_TARGETS, DEFAULT_TARGETS_FALLBACK, SUPPORTED_CURRENCIES, TZ
 from bot.handlers._common import interval_label, trigger_backfill
 from bot.handlers.rate import build_rate_message
 
@@ -130,6 +132,7 @@ async def _save_user(update: Update, context: ContextTypes.DEFAULT_TYPE, home_cu
     """Persist the user and their default targets, then confirm."""
     user = update.effective_user
     chat_id = update.effective_chat.id
+    is_new = database.get_user(user.id) is None
 
     # Determine targets
     if home_currency in DEFAULT_TARGETS:
@@ -139,6 +142,10 @@ async def _save_user(update: Update, context: ContextTypes.DEFAULT_TYPE, home_cu
 
     database.upsert_user(user.id, chat_id, user.username, home_currency)
     database.set_user_targets(user.id, targets)
+
+    # Mark as notified immediately to prevent dispatcher race condition
+    now_str = datetime.now(TZ).isoformat(timespec="seconds")
+    database.update_last_notified(user.id, now_str)
 
     # Trigger background backfill for new pairs
     trigger_backfill(home_currency, targets)
@@ -151,13 +158,11 @@ async def _save_user(update: Update, context: ContextTypes.DEFAULT_TYPE, home_cu
     else:
         await update.message.reply_text(summary)
 
-    # Send first rate notification immediately and mark as notified
-    message = await build_rate_message(user.id)
-    if message:
-        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
-        from datetime import datetime
-        from bot.config import TZ
-        database.update_last_notified(user.id, datetime.now(TZ).isoformat(timespec="seconds"))
+    # Send first rate notification only for new users
+    if is_new:
+        message = await build_rate_message(user.id)
+        if message:
+            await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
     return ConversationHandler.END
 
