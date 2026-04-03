@@ -52,13 +52,13 @@ def _prediction_trend(prediction_summary: str | None) -> str:
             last = float(parts[-1])
             pct = (last - first) / first * 100
             if pct > 0.1:
-                return "微涨"
+                return "UP"
             elif pct < -0.1:
-                return "微跌"
-            return "平稳"
+                return "DOWN"
+            return "FLAT"
         except ValueError:
             pass
-    return "暂无"
+    return "--"
 
 
 def _prediction_values(prediction_summary: str | None) -> list[str]:
@@ -122,8 +122,8 @@ def _build_prediction_table(
             row += _lpad(val, col_w) + "  "
         rows.append(row)
 
-    # Build trend row — "趋势" is 4 display-width, pad to label_w
-    trend_row = "趋势" + " " * (label_w - 4 + 1)
+    # Build trend row — all ASCII to avoid CJK alignment issues
+    trend_row = "trend "
     for trend in trends:
         trend_row += _lpad(trend, col_w) + "  "
 
