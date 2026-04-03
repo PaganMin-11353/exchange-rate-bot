@@ -15,6 +15,7 @@ from telegram.ext import (
 from bot import database
 from bot.config import COMMON_CURRENCIES, DEFAULT_TARGETS, DEFAULT_TARGETS_FALLBACK
 from bot.handlers._common import interval_label, trigger_backfill
+from bot.handlers.rate import build_rate_message
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +150,11 @@ async def _save_user(update: Update, context: ContextTypes.DEFAULT_TYPE, home_cu
         await update.callback_query.edit_message_text(summary)
     else:
         await update.message.reply_text(summary)
+
+    # Send first rate notification immediately
+    message = await build_rate_message(user.id)
+    if message:
+        await context.bot.send_message(chat_id=chat_id, text=message)
 
     return ConversationHandler.END
 
