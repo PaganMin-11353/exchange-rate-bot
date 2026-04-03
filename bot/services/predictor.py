@@ -107,13 +107,13 @@ def _load_history_df(base: str, target: str) -> pd.DataFrame | None:
         return None
 
     df = pd.DataFrame(history)
-    df["date"] = pd.to_datetime(df["fetched_at"])
+    df = df.assign(date=pd.to_datetime(df["fetched_at"]))
     df = df[["date", "rate"]].sort_values("date").reset_index(drop=True)
 
     # Deduplicate by date (keep last entry per day)
-    df["date_only"] = df["date"].dt.date
+    df = df.assign(date_only=df["date"].dt.date)
     df = df.drop_duplicates(subset="date_only", keep="last")
-    df["date"] = pd.to_datetime(df["date_only"])
+    df = df.assign(date=pd.to_datetime(df["date_only"]))
     df = df[["date", "rate"]].reset_index(drop=True)
 
     return df
